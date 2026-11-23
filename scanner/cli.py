@@ -1,7 +1,8 @@
 """Command-line interface for the port scanner.
 
-Example:
+Examples:
     python3 -m scanner 127.0.0.1 --ports 1-1024
+    python3 -m scanner 127.0.0.1 --ports 1-1024 --json scan.json
 
 Safety: the scanner refuses public IP addresses unless --allow-public is
 given. Only scan systems you own or have written permission to test.
@@ -9,10 +10,13 @@ given. Only scan systems you own or have written permission to test.
 import argparse
 import ipaddress
 import socket
+import sys
 import time
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from scanner.portscan import parse_ports, scan_ports
+from scanner.report import build_report, write_json
 
 
 def is_private_address(address: str) -> bool:
@@ -24,7 +28,7 @@ def is_private_address(address: str) -> bool:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="scanner",
-        description="TCP port scanner with banner grabbing. "
+        description="TCP port scanner with banner grabbing and service detection. "
                     "Only scan systems you own or have written permission to test.",
     )
     parser.add_argument("target", help="hostname or IPv4 address to scan")
@@ -34,6 +38,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="connect timeout in seconds (default 0.5)")
     parser.add_argument("--workers", type=int, default=100,
                         help="parallel connections, 1-500 (default 100)")
+    parser.add_argument("--json", metavar="FILE",
+                        help="write the results to FILE as JSON")
     parser.add_argument("--allow-public", action="store_true",
                         help="allow scanning public IP addresses (only with permission)")
     return parser
@@ -63,19 +69,28 @@ def main(argv: Optional[List[str]] = None) -> int:
             "written permission to test, then add --allow-public.")
 
     print(f"Scanning {args.target} ({address}), {len(ports)} port(s)...")
+    started_at = datetime.now(timezone.utc)
     started = time.monotonic()
     results = scan_ports(address, ports, timeout=args.timeout, workers=args.workers)
     elapsed = time.monotonic() - started
+    report = build_report(args.target, address, len(ports), results, started_at, elapsed)
 
-    open_ports = [r for r in results if r.state == "open"]
-    if open_ports:
-        print(f"{'PORT':<8}{'STATE':<8}BANNER")
-        for r in open_ports:
-            print(f"{r.port:<8}{r.state:<8}{r.banner}")
+    if report["open_ports"]:
+        print(f"{'PORT':<8}{'SERVICE':<12}{'VERSION':<26}BANNER")
+        for p in report["open_ports"]:
+            version = f"{p['product']} {p['version']}".strip()
+            print(f"{p['port']:<8}{p['service']:<12}{version:<26}{p['banner']}")
     else:
         print("No open ports found.")
 
-    closed = sum(1 for r in results if r.state == "closed")
-    filtered = sum(1 for r in results if r.state == "filtered")
-    print(f"Done in {elapsed:.1f}s: {len(open_ports)} open, {closed} closed, {filtered} filtered.")
+    s = report["summary"]
+    print(f"Done in {elapsed:.1f}s: {s['open']} open, {s['closed']} closed, {s['filtered']} filtered.")
+
+    if args.json:
+        try:
+            write_json(report, args.json)
+        except OSError as err:
+            print(f"error: could not write {args.json}: {err}", file=sys.stderr)
+            return 1
+        print(f"Wrote JSON report to {args.json}")
     return 0

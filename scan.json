@@ -1,0 +1,48 @@
+{
+  "tool": "vuln-scanner",
+  "tool_version": "0.2.0",
+  "target": "127.0.0.1",
+  "address": "127.0.0.1",
+  "started": "2026-11-23T05:10:40+00:00",
+  "duration_seconds": 0.83,
+  "ports_scanned": 10000,
+  "summary": {
+    "open": 4,
+    "closed": 9996,
+    "filtered": 0
+  },
+  "open_ports": [
+    {
+      "port": 2222,
+      "service": "ssh",
+      "product": "OpenSSH",
+      "version": "10.2p1",
+      "confidence": "banner",
+      "banner": "SSH-2.0-OpenSSH_10.2p1 Ubuntu-2ubuntu3.8"
+    },
+    {
+      "port": 5000,
+      "service": "unknown",
+      "product": "",
+      "version": "",
+      "confidence": "unknown",
+      "banner": ""
+    },
+    {
+      "port": 7000,
+      "service": "unknown",
+      "product": "",
+      "version": "",
+      "confidence": "unknown",
+      "banner": ""
+    },
+    {
+      "port": 8080,
+      "service": "http",
+      "product": "SimpleHTTP",
+      "version": "0.6",
+      "confidence": "banner",
+      "banner": "HTTP/1.0 200 OK | Server: SimpleHTTP/0.6 Python/3.14.7 | Date: Mon, 23 Nov 2026 05:10:41 GMT | Content-type: text/html; charset=utf-8 | Content-Length: 414"
+    }
+  ]
+}
