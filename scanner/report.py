@@ -13,7 +13,14 @@ from scanner.cve import LookupResult
 from scanner.portscan import PortResult
 from scanner.services import identify
 
-TOOL_VERSION = "0.3.0"
+TOOL_VERSION = "0.4.0"
+
+STATUS_TEXT = {
+    "no_product": "not checked (product not identified)",
+    "no_mapping": "not checked (no NVD mapping for this product yet)",
+    "no_version": "not checked (no usable version)",
+    "unknown_cpe": "NVD does not recognise this exact version",
+}
 
 
 def _vulnerability_block(lookup: LookupResult) -> dict:

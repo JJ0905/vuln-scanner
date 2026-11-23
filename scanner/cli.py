@@ -3,7 +3,7 @@
 Examples:
     python3 -m scanner 127.0.0.1 --ports 1-1024
     python3 -m scanner 127.0.0.1 --ports 1-1024 --json scan.json
-    python3 -m scanner 127.0.0.1 --ports 1-1024 --cve
+    python3 -m scanner 127.0.0.1 --ports 1-1024 --cve --html report.html
 
 Safety: the scanner refuses public IP addresses unless --allow-public is
 given. Only scan systems you own or have written permission to test.
@@ -25,18 +25,11 @@ from typing import List, Optional
 
 from scanner.cve import CveCache, NvdClient
 from scanner.portscan import parse_ports, scan_ports
-from scanner.report import build_report, write_json
+from scanner.html_report import write_html
+from scanner.report import STATUS_TEXT, build_report, write_json
 from scanner.services import identify
 
 DEFAULT_CACHE = Path.home() / ".cache" / "vuln-scanner" / "nvd-cache.json"
-
-STATUS_TEXT = {
-    "no_product": "not checked (product not identified)",
-    "no_mapping": "not checked (no NVD mapping for this product yet)",
-    "no_version": "not checked (no usable version)",
-    "unknown_cpe": "NVD does not recognise this exact version",
-}
-
 
 def is_private_address(address: str) -> bool:
     """True for loopback, private (RFC 1918), and link-local addresses."""
@@ -65,6 +58,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="where to cache NVD answers (default: %(default)s)")
     parser.add_argument("--json", metavar="FILE",
                         help="write the results to FILE as JSON")
+    parser.add_argument("--html", metavar="FILE",
+                        help="write a standalone HTML report to FILE")
     parser.add_argument("--allow-public", action="store_true",
                         help="allow scanning public IP addresses (only with permission)")
     return parser
@@ -107,7 +102,7 @@ def print_cve_section(report: dict) -> None:
             print(f"  {label}: {block['total']} CVE(s){note}, highest "
                   f"{_score_text(top['score'])} {top['severity']}")
             for c in cves[:5]:
-                print(f"      {c['cve_id']}  {_score_text(c['score']):>4}  "
+                print(f"      {c['cve_id']:<16}{_score_text(c['score']):>4}  "
                       f"{c['severity']:<8} {c['summary'][:90]}")
         elif status == "error":
             print(f"  {label}: lookup failed ({block['error']})")
@@ -176,4 +171,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"error: could not write {args.json}: {err}", file=sys.stderr)
             return 1
         print(f"Wrote JSON report to {args.json}")
+
+    if args.html:
+        try:
+            write_html(report, args.html)
+        except OSError as err:
+            print(f"error: could not write {args.html}: {err}", file=sys.stderr)
+            return 1
+        print(f"Wrote HTML report to {args.html}")
     return 0
